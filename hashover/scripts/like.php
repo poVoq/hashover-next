@@ -38,16 +38,18 @@ if (basename ($_SERVER['PHP_SELF']) === basename (__FILE__)) {
 require ('standard-setup.php');
 
 // Autoload class files
-spl_autoload_register (function ($classname) {
-	$classname = strtolower ($classname);
+spl_autoload_register(function ($class) {
+	$get_class = explode('\\', $class);
+	$class_name = array_pop($get_class);
+	$file_name = __DIR__ . "\\" . strtolower($class_name) . '.php';  // some systems may need to use forward slashes instead
 
-	if (!@include ('./' . $classname . '.php')) {
-		echo json_encode (array (
-			'error' => $classname . '.php" file could not be included!'
+	if(!file_exists($file_name)) {
+        echo json_encode (array (
+			'error' => $file_name . ' file could not be included!'
 		));
-
 		exit;
-	}
+    }
+    include $file_name;
 });
 
 // Sets cookie indicating what comment was liked
