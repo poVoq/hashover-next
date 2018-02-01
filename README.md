@@ -1,3 +1,5 @@
+**Note:** This fork required php 7.1 or higher. For running it on a different php version see the comment on the encryption used here: https://github.com/jacobwb/hashover-next/issues/186#issuecomment-337907829
+
 HashOver 2.0 (development)
 ===
 **HashOver** is a PHP comment system intended as a replacement for services like Disqus. HashOver is free and open source software, under the [GNU Affero General Public License](http://www.gnu.org/licenses/agpl.html). HashOver adds a "comment section" to any website, by placing a few simple lines of JavaScript or PHP to the source code of any webpage. HashOver is a self-hosted system and allows completely anonymous comments to be posted, the only required information is the comment itself.
