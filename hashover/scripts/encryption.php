@@ -30,19 +30,17 @@ if (basename ($_SERVER['PHP_SELF']) === basename (__FILE__)) {
 // Encryption methods
 class Encryption
 {
-	protected $cipher = MCRYPT_RIJNDAEL_128;
-	protected $mcryptMode = MCRYPT_MODE_CBC;
-	protected $prefix;
-	protected $cost = '$10$';
-	protected $encryptionHash;
-	protected $iv_size;
+    protected $prefix;
+    protected $cost = '$10$';
+    protected $cipher = 'aes-256-gcm';
+    protected $iv;
+    protected $encryption_key;
 
-	public function __construct ($encryption_key)
-	{
-		$this->prefix = (version_compare (PHP_VERSION, '5.3.7') < 0) ? '$2a' : '$2y';
-		$this->encryptionHash = str_split (hash ('sha256', $encryption_key)); // SHA-256 hash array
-		$this->iv_size = mcrypt_get_iv_size ($this->cipher, $this->mcryptMode);
-	}
+    public function __construct () {
+	$this->prefix = (version_compare (PHP_VERSION, '5.3.7') < 0) ? '$2a' : '$2y';
+        $this->encryption_key = base64_encode(openssl_random_pseudo_bytes(32));
+        $this->iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length($this->cipher));
+    }
 
 	// Creates Blowfish hash for passwords
 	public function createHash ($str)
@@ -70,75 +68,43 @@ class Encryption
 		return ($hash === $compare) ? true : false;
 	}
 
-	// Generate a random mcrypt key
-	public function createMcryptKey ($str)
-	{
-		$key = '';
-		shuffle ($str);
-		$keys = array ();
+// encrypt  string
+ public function encrypt ($str) {
 
-		// Generate random string from encryption key SHA-256 hash
-		for ($k = 0; $k < 16; $k++) {
-			$keys[] = array_search ($str[$k], $this->encryptionHash);
-			$key .= $str[$k];
-		}
+   // Remove the base64 encoding from our key
+    $encrypt_key = base64_decode($this->encryption_key);
 
-		// Return random string and list of encryption hash array keys
-		return array (
-			'key' => $key,
-			'keys' => join (',', $keys)
-		);
-	}
+    // Encrypt the data using AES 256 encryption in gcm mode using our encryption key and initialization vector.
+    $encrypted = openssl_encrypt($str, $this->cipher, $encrypt_key, $options=0, $this->iv, $tag);
 
-	// Mcrypt with random key from SHA-256 hash for e-mails
-	public function encrypt ($str)
-	{
-		// Get a random encryption key
-		$key = $this->createMcryptKey ($this->encryptionHash);
+        // Return encrypted value and list of encryption hash array keys
+        return array (
+            'encrypted' => base64_encode ($encrypted),
+            'keys' => $this->cipher . ',' . $this->encryption_key . ',' . base64_encode($this->iv) . ',' . base64_encode($tag)
+        );
+    }
 
-		// Encrypt using random encryption key
-		$iv = mcrypt_create_iv ($this->iv_size, MCRYPT_DEV_URANDOM);
-		$encrypted = mcrypt_encrypt ($this->cipher, $key['key'], $str, $this->mcryptMode, $iv);
-		$encrypted = $iv . $encrypted;
+// Decrypt openssl_encrypt string
+public function decrypt ($str, $encrypted_keys) {
 
-		// Return encrypted value and list of encryption hash array keys
-		return array (
-			'encrypted' => base64_encode ($encrypted),
-			'keys' => $key['keys']
-		);
-	}
+if (!empty ($str) && !empty ($encrypted_keys)) {
 
-	// Decrypt Mcrypt'd string
-	public function decrypt ($str, $encrypted)
-	{
-		if (!empty ($str) and !empty ($encrypted)) {
-			$key = '';
+    $decrypted = base64_decode($str, true);
 
-			// Retrieve Mcrypt key from array
-			foreach (explode (',', $encrypted) as $value) {
-				$hash_key =(int) $value;
+   list($cipher, $encrypt_key, $iv, $tag) = explode(',', $encrypted_keys);
 
-				// Give up if any array value isn't valid
-				if (!isset ($this->encryptionHash[$hash_key])) {
-					return '';
-				}
+        $encrypt_key = base64_decode($encrypt_key);
+        $iv = base64_decode($iv);
+        $tag = base64_decode($tag);
 
-				// Add character to decryption key
-				$key .= $this->encryptionHash[$hash_key];
-			}
+     if ($decrypted !== false and !empty ($decrypted)) {
 
-			// Decrypt using retrieved key
-			$decrypted = base64_decode ($str, true);
+         $decrypted = openssl_decrypt($decrypted, $cipher, $encrypt_key, $options=0, $iv, $tag);
 
-			if ($decrypted !== false and !empty ($decrypted)) {
-				$iv = substr ($decrypted, 0, $this->iv_size);
-				$decrypted = substr ($decrypted, $this->iv_size);
-				$decrypted = mcrypt_decrypt ($this->cipher, $key, $decrypted, $this->mcryptMode, $iv);
+         return $decrypted;
 
-				return rtrim ($decrypted, "\0");
-			}
-		}
-
-		return false;
-	}
+            }
+        }
+        return false;
+    }
 }
