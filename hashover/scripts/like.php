@@ -41,7 +41,7 @@ require ('standard-setup.php');
 spl_autoload_register(function ($class) {
 	$get_class = explode('\\', $class);
 	$class_name = array_pop($get_class);
-	$file_name = __DIR__ . "\\" . strtolower($class_name) . '.php';  // some systems may need to use forward slashes instead
+	$file_name = __DIR__ . "/" . strtolower($class_name) . '.php';  // some systems may need to use other slashes instead?
 
 	if(!file_exists($file_name)) {
         echo json_encode (array (
